@@ -1,4 +1,5 @@
 import { assertProjectTextSize } from './project-limits';
+import type { Language } from './localization';
 
 interface HybridApi {
   SendRawMessage(message: string): void;
@@ -190,8 +191,8 @@ async function request(
   });
 }
 
-export async function openNativeProject(): Promise<OpenedProject | null> {
-  return (await request('openProject')) as OpenedProject | null;
+export async function openNativeProject(language: Language = 'en'): Promise<OpenedProject | null> {
+  return (await request('openProject', { language })) as OpenedProject | null;
 }
 export async function saveNativeFile(
   fileName: string,

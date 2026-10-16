@@ -8,6 +8,7 @@ import {
   type AppearancePreferences,
 } from '@/lib/appearance';
 import { Button } from './ui/button';
+import { useI18n } from '@/lib/i18n';
 
 export default function AppearanceSettings({
   open,
@@ -22,6 +23,7 @@ export default function AppearanceSettings({
   onChange: (preferences: AppearancePreferences) => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const element = dialog.current;
@@ -41,13 +43,36 @@ export default function AppearanceSettings({
       <div className="appearance-content">
         <div className="dialog-heading">
           <Type size={18} />
-          <strong id="appearance-title">Appearance</strong>
-          <button className="icon-button" aria-label="Close appearance settings" onClick={onClose}>
+          <strong id="appearance-title">{t('Appearance')}</strong>
+          <button
+            className="icon-button"
+            aria-label={t('Close appearance settings')}
+            onClick={onClose}
+          >
             <X size={16} />
           </button>
         </div>
         <label className="appearance-field">
-          <span>UI text size</span>
+          <span>{t('Language')}</span>
+          <select
+            value={preferences.language}
+            onChange={(event) =>
+              onChange({
+                ...preferences,
+                language: event.target.value as AppearancePreferences['language'],
+              })
+            }
+          >
+            <option value="en" lang="en">
+              English
+            </option>
+            <option value="ja" lang="ja">
+              日本語
+            </option>
+          </select>
+        </label>
+        <label className="appearance-field">
+          <span>{t('UI text size')}</span>
           <select
             value={preferences.textScale}
             onChange={(event) =>
@@ -59,18 +84,18 @@ export default function AppearanceSettings({
           >
             {textScales.map((scale) => (
               <option key={scale} value={scale}>
-                {scale}%{scale === defaultAppearance.textScale ? ' (default)' : ''}
+                {scale}%{scale === defaultAppearance.textScale ? t(' (default)') : ''}
               </option>
             ))}
           </select>
         </label>
         <div className="appearance-preview">
-          <span>Sequence</span>
-          <strong>Attack sequence</strong>
+          <span>{t('Sequence')}</span>
+          <strong>{t('Attack sequence')}</strong>
           <small>IsEnemyVisible → Attack</small>
         </div>
         <label className="appearance-field">
-          <span>Code font size</span>
+          <span>{t('Code font size')}</span>
           <select
             value={preferences.codeFontSize}
             onChange={(event) =>
@@ -82,7 +107,7 @@ export default function AppearanceSettings({
           >
             {codeFontSizes.map((size) => (
               <option key={size} value={size}>
-                {size} px{size === defaultAppearance.codeFontSize ? ' (default)' : ''}
+                {size} px{size === defaultAppearance.codeFontSize ? t(' (default)') : ''}
               </option>
             ))}
           </select>
@@ -91,24 +116,27 @@ export default function AppearanceSettings({
           <code style={{ fontSize: preferences.codeFontSize }}>return NodeStatus.Success;</code>
         </div>
         <p className="appearance-note" role="status">
-          {saveUnavailable
-            ? 'Applied for this session. Local save is unavailable.'
-            : 'Saved on this device. Canvas zoom is unchanged.'}
+          {t(
+            saveUnavailable
+              ? 'Applied for this session. Local save is unavailable.'
+              : 'Saved on this device. Canvas zoom is unchanged.',
+          )}
         </p>
         <div className="appearance-actions">
           <Button
             variant="outline"
             disabled={
+              preferences.language === defaultAppearance.language &&
               preferences.textScale === defaultAppearance.textScale &&
               preferences.codeFontSize === defaultAppearance.codeFontSize
             }
             onClick={() => onChange({ ...defaultAppearance })}
           >
             <RotateCcw size={14} />
-            Reset defaults
+            {t('Reset defaults')}
           </Button>
           <Button variant="primary" onClick={onClose}>
-            Done
+            {t('Done')}
           </Button>
         </div>
       </div>

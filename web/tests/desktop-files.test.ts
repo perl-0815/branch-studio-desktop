@@ -153,11 +153,12 @@ describe('HybridWebView raw file bridge', () => {
     const host = fakeHost();
     vi.stubGlobal('window', host);
     const files = await module();
-    const opened = files.openNativeProject();
+    const opened = files.openNativeProject('ja');
     await Promise.resolve();
     await Promise.resolve();
     const request = JSON.parse(host.HybridWebView.SendRawMessage.mock.calls[0][0]);
     expect(request.type).toBe('openProject');
+    expect(request.language).toBe('ja');
     expect(typeof request.requestId).toBe('string');
     reply(host, {
       type: 'projectOpened',

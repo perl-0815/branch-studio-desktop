@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace BranchStudio.Desktop.Services;
 
-public sealed record NativeBridgeRequest(string Type, string RequestId, string? FileName, string? Content, string? MimeType);
+public sealed record NativeBridgeRequest(string Type, string RequestId, string? FileName, string? Content, string? MimeType, string Language = "en");
 
 public sealed record NativeBridgeResponse(string Type, string RequestId)
 {
@@ -64,9 +64,10 @@ public static class BridgeProtocol
             var fileName = ReadString(root, "fileName");
             var content = ReadString(root, "content");
             var mimeType = ReadString(root, "mimeType");
+            var language = ReadString(root, "language") == "ja" ? "ja" : "en";
             if (type == "saveFile" && (content is null || fileName is null))
                 throw new BridgeProtocolException("invalid_request", "Saving a file requires its name and text content.", requestId, type);
-            return new(type, requestId, fileName, content, mimeType);
+            return new(type, requestId, fileName, content, mimeType, language);
         }
     }
 

@@ -342,7 +342,13 @@ code {
   color: var(--accent);
   background: #303a2b;
 }
+[data-radix-popper-content-wrapper]:has(> .tooltip) {
+  pointer-events: none;
+}
 .tooltip {
+  pointer-events: none;
+  max-width: min(360px, calc(100vw - 16px));
+  overflow-wrap: anywhere;
   z-index: 110;
   background: #30363a;
   color: #e6e9e7;
@@ -991,7 +997,13 @@ code {
   font-size: calc(10px * var(--ui-text-scale));
   color: #78868d;
   position: relative;
-  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.25;
+}
+.inspector-tabs > button svg {
+  flex-shrink: 0;
 }
 .inspector-tabs > button.active {
   color: #d0dbd5;

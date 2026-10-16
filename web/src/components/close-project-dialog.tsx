@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { FileX2, X } from 'lucide-react';
 import { Button } from './ui/button';
+import { useI18n } from '@/lib/i18n';
 
 export interface CloseProjectDialogProps {
   open: boolean;
@@ -23,6 +24,7 @@ export default function CloseProjectDialog({
   onDiscard,
   onSave,
 }: CloseProjectDialogProps) {
+  const { t } = useI18n();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const element = dialog.current;
@@ -50,10 +52,10 @@ export default function CloseProjectDialog({
       <div className="appearance-content">
         <div className="dialog-heading">
           <FileX2 size={18} />
-          <strong id="close-project-title">Close tree</strong>
+          <strong id="close-project-title">{t('Close tree')}</strong>
           <button
             className="icon-button"
-            aria-label="Cancel closing tree"
+            aria-label={t('Cancel closing tree')}
             disabled={busy}
             onClick={onCancel}
           >
@@ -65,22 +67,24 @@ export default function CloseProjectDialog({
           id="close-project-description"
           style={{ overflowWrap: 'anywhere' }}
         >
-          Remove “{documentName}” from this workspace? Save JSON to keep a copy.
+          {t('Remove “{name}” from this workspace? Save JSON to keep a copy.', {
+            name: documentName,
+          })}
         </p>
         {saveError && (
           <p className="appearance-note" role="alert">
-            The tree is still open. JSON was not saved.
+            {t('The tree is still open. JSON was not saved.')}
           </p>
         )}
         <div className="appearance-actions">
           <Button variant="outline" disabled={busy} onClick={onCancel} autoFocus>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button disabled={busy} onClick={onDiscard}>
-            Close without saving
+            {t('Close without saving')}
           </Button>
           <Button variant="primary" disabled={busy} onClick={onSave}>
-            Save JSON and close
+            {t('Save JSON and close')}
           </Button>
         </div>
       </div>

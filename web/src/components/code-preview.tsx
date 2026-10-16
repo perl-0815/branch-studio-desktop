@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { editor } from 'monaco-editor';
 import { loader } from '@monaco-editor/react';
 import type { CodeResult } from '@/lib/types';
+import { useI18n } from '@/lib/i18n';
 loader.config({ paths: { vs: '/monaco/vs' } });
 const Monaco = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 export default function CodePreview({
@@ -17,6 +18,7 @@ export default function CodePreview({
   selectedId?: string;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const ed = useRef<editor.IStandaloneCodeEditor | null>(null);
   const decorations = useRef<editor.IEditorDecorationsCollection | null>(null);
   const refs = useRef({ result, onSelect, selectedId });
@@ -47,10 +49,11 @@ export default function CodePreview({
         height="100%"
         language="csharp"
         theme="vs-dark"
-        value={result?.code ?? '// Resolve the errors in Problems to generate C#.'}
-        loading={<div className="code-loading">Loading C# editor…</div>}
+        value={result?.code ?? t('// Resolve the errors in Problems to generate C#.')}
+        loading={<div className="code-loading">{t('Loading C# editor…')}</div>}
         options={{
           readOnly: true,
+          ariaLabel: t('C# code preview'),
           fontSize,
           fontFamily: '"SFMono-Regular", Consolas, monospace',
           lineHeight: Math.round((fontSize * 5) / 3),

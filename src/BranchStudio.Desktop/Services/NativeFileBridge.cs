@@ -59,7 +59,7 @@ public sealed class NativeFileBridge(IFilePicker picker, IFileSaver saver)
     {
         var selected = await MainThread.InvokeOnMainThreadAsync(() => picker.PickAsync(new PickOptions
         {
-            PickerTitle = "Open project JSON",
+            PickerTitle = request.Language == "ja" ? "プロジェクトJSONを開く" : "Open project JSON",
             FileTypes = ProjectTypes,
         }));
         if (selected is null) return Cancelled(request);

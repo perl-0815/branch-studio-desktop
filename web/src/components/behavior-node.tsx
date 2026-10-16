@@ -4,29 +4,31 @@ import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { AlertCircle, Circle, Check, X, LoaderCircle } from 'lucide-react';
 import type { GraphNode, Status } from '@/lib/types';
 import { registry } from '@/lib/registry';
+import { useI18n } from '@/lib/i18n';
 import NodeIcon from './node-icon';
 export type FlowNode = Node<
   { node: GraphNode; error: boolean; status?: Status; childCount: number },
   'behavior'
 >;
 const BehaviorNode = memo(function BehaviorNode({ data, selected }: NodeProps<FlowNode>) {
+  const { t } = useI18n();
   const { node, error, status, childCount } = data;
   const def = registry[node.kind];
   const summary = node.params.method
     ? `${node.params.method}()`
     : node.params.seconds !== undefined
-      ? `${node.params.seconds}s`
+      ? t('{seconds}s', { seconds: String(node.params.seconds) })
       : node.params.variable
         ? `${node.params.variable} = ${node.params.value}`
         : node.kind === 'Root'
-          ? 'Tree entry point'
+          ? t('Tree entry point')
           : node.params.count
-            ? `${node.params.count} repetitions`
+            ? t('{count} repetitions', { count: String(node.params.count) })
             : node.params.attempts
-              ? `${node.params.attempts} attempts`
+              ? t('{count} attempts', { count: String(node.params.attempts) })
               : node.params.message
                 ? String(node.params.message)
-                : `${childCount} ${childCount === 1 ? 'child' : 'children'}`;
+                : t(childCount === 1 ? '{count} child' : '{count} children', { count: childCount });
   return (
     <div
       className={`behavior-node ${selected ? 'is-selected' : ''} ${error ? 'has-error' : ''} ${node.disabled ? 'is-disabled' : ''} state-${status ?? 'Idle'}`}
@@ -38,7 +40,7 @@ const BehaviorNode = memo(function BehaviorNode({ data, selected }: NodeProps<Fl
       )}
       <div className="node-type">
         <NodeIcon kind={node.kind} size={13} />
-        <span title={def.label}>{def.label}</span>
+        <span title={t(def.label)}>{t(def.label)}</span>
         {error ? (
           <AlertCircle size={12} className="error-icon" />
         ) : status === 'Running' ? (

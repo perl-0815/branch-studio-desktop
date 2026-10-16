@@ -14,15 +14,17 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useEditorStore } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
 import { registry } from '@/lib/registry';
 import type { GraphNode, NodeKind, ValidationIssue, Variable } from '@/lib/types';
 import { variableTypes } from '@/generated/contracts.generated';
 import NodeIcon from './node-icon';
 import { IconButton } from './ui/button';
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const { t } = useI18n();
   return (
     <label className="field">
-      <span>{label}</span>
+      <span>{t(label)}</span>
       {children}
     </label>
   );
@@ -65,6 +67,7 @@ export default function Inspector({
   activeTab: 'node' | 'data';
   onTab: (tab: 'node' | 'data') => void;
 }) {
+  const { t } = useI18n();
   const s = useEditorStore();
   const p = s.project;
   const node = p.nodes.find((n) => n.id === s.selectedIds[0]);
@@ -78,9 +81,11 @@ export default function Inspector({
       return (
         <Field key={key} label={paramLabels[key]}>
           <select value={String(value)} onChange={(e) => update(e.target.value)}>
-            <option>Success</option>
-            <option>Failure</option>
-            {!['Condition', 'Validate'].includes(node!.kind) && <option>Running</option>}
+            <option value="Success">{t('Success')}</option>
+            <option value="Failure">{t('Failure')}</option>
+            {!['Condition', 'Validate'].includes(node!.kind) && (
+              <option value="Running">{t('Running')}</option>
+            )}
           </select>
         </Field>
       );
@@ -89,7 +94,7 @@ export default function Inspector({
         <Field key={key} label="Variable">
           <select value={String(value)} onChange={(e) => update(e.target.value)}>
             {!p.variables.some((v) => v.name === value) && (
-              <option value={String(value)}>{String(value) || 'Select variable'}</option>
+              <option value={String(value)}>{String(value) || t('Select variable')}</option>
             )}
             {p.variables.map((v) => (
               <option key={v.id} value={v.name}>
@@ -104,7 +109,9 @@ export default function Inspector({
         <Field key={key} label={paramLabels[key]}>
           <select value={String(value)} onChange={(e) => update(e.target.value)}>
             {['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'].map((x) => (
-              <option key={x}>{x}</option>
+              <option key={x} value={x}>
+                {x}
+              </option>
             ))}
           </select>
         </Field>
@@ -113,7 +120,7 @@ export default function Inspector({
       return (
         <label className="check-field" key={key}>
           <input type="checkbox" checked={value} onChange={(e) => update(e.target.checked)} />
-          {paramLabels[key] ?? key}
+          {t(paramLabels[key] ?? key)}
         </label>
       );
     if (key === 'headers' || key === 'arguments')
@@ -163,11 +170,11 @@ export default function Inspector({
       <div className="inspector-tabs">
         <button className={activeTab === 'node' ? 'active' : ''} onClick={() => onTab('node')}>
           <SlidersHorizontal size={14} />
-          Inspector
+          {t('Inspector')}
         </button>
         <button className={activeTab === 'data' ? 'active' : ''} onClick={() => onTab('data')}>
           <Database size={14} />
-          {p.mode === 'game' ? 'Blackboard' : 'Context'}
+          {t(p.mode === 'game' ? 'Blackboard' : 'Context')}
           <small>{p.variables.length}</small>
         </button>
       </div>
@@ -175,9 +182,9 @@ export default function Inspector({
         {activeTab === 'data' ? (
           <>
             <div className="section-title">
-              <span>SHARED VARIABLES</span>
+              <span>{t('SHARED VARIABLES')}</span>
               <IconButton
-                label="Add variable"
+                label={t('Add variable')}
                 onClick={() => {
                   let i = 1;
                   while (p.variables.some((v) => v.name === `variable${i}`)) i++;
@@ -194,7 +201,9 @@ export default function Inspector({
                 <Plus size={14} />
               </IconButton>
             </div>
-            {p.variables.length === 0 && <div className="empty-small">No variables defined.</div>}
+            {p.variables.length === 0 && (
+              <div className="empty-small">{t('No variables defined.')}</div>
+            )}
             {p.variables.map((v) => (
               <div className="variable" key={v.id}>
                 <div className="variable-heading">
@@ -204,7 +213,7 @@ export default function Inspector({
                     <code>{v.type}</code>
                   </button>
                   <IconButton
-                    label={`Delete variable ${v.name}`}
+                    label={t('Delete variable {name}', { name: v.name })}
                     onClick={() =>
                       s.updateProject({ variables: p.variables.filter((x) => x.id !== v.id) })
                     }
@@ -238,7 +247,9 @@ export default function Inspector({
                         }
                       >
                         {variableTypes.map((t) => (
-                          <option key={t}>{t}</option>
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
                         ))}
                       </select>
                     </Field>
@@ -261,15 +272,15 @@ export default function Inspector({
                 <NodeIcon kind={node.kind} size={21} />
               </span>
               <div>
-                <strong>{registry[node.kind].label}</strong>
-                <small>{registry[node.kind].category}</small>
+                <strong>{t(registry[node.kind].label)}</strong>
+                <small>{t(registry[node.kind].category)}</small>
               </div>
               {node.kind !== 'Root' && (
                 <button
                   className={`enable-toggle ${!node.disabled ? 'enabled' : ''}`}
                   role="switch"
                   aria-checked={!node.disabled}
-                  aria-label="Node enabled"
+                  aria-label={t('Node enabled')}
                   onClick={() => s.updateNode(node.id, { disabled: !node.disabled })}
                 >
                   <span />
@@ -279,7 +290,7 @@ export default function Inspector({
             <div className="inspector-section">
               <Field label="Name">
                 <input
-                  aria-label="Node name"
+                  aria-label={t('Node name')}
                   maxLength={300}
                   value={node.name}
                   onChange={(e) => s.updateNode(node.id, { name: e.target.value })}
@@ -293,7 +304,11 @@ export default function Inspector({
             </div>
             {!registry[node.kind].modes.includes(p.mode) && conversions[node.kind] && (
               <div className="conversion-notice">
-                <span>Unavailable in {p.mode === 'game' ? 'Game AI' : 'Workflow'}</span>
+                <span>
+                  {t('Unavailable in {mode}', {
+                    mode: t(p.mode === 'game' ? 'Game AI' : 'Workflow'),
+                  })}
+                </span>
                 <button
                   onClick={() => {
                     const kind = conversions[node.kind]!;
@@ -303,13 +318,13 @@ export default function Inspector({
                     });
                   }}
                 >
-                  Convert to {registry[conversions[node.kind]!].label}
+                  {t('Convert to {type}', { type: t(registry[conversions[node.kind]!].label) })}
                 </button>
               </div>
             )}
             {Object.keys(node.params).length > 0 && (
               <div className="inspector-section">
-                <div className="section-title">PARAMETERS</div>
+                <div className="section-title">{t('PARAMETERS')}</div>
                 {Object.entries(node.params)
                   .filter(([key]) => key !== 'mock')
                   .map(([key, value]) => renderParam(key, value))}
@@ -318,7 +333,7 @@ export default function Inspector({
             {registry[node.kind].maxChildren > 0 && (
               <div className="inspector-section">
                 <div className="section-title">
-                  <span>CHILD ORDER</span>
+                  <span>{t('CHILD ORDER')}</span>
                   <small>
                     {edges.length}
                     {Number.isFinite(registry[node.kind].maxChildren)
@@ -327,7 +342,7 @@ export default function Inspector({
                   </small>
                 </div>
                 {edges.length === 0 ? (
-                  <div className="empty-small">No children connected</div>
+                  <div className="empty-small">{t('No children connected')}</div>
                 ) : (
                   edges.map((edge, i) => {
                     const child = p.nodes.find((n) => n.id === edge.target);
@@ -341,7 +356,7 @@ export default function Inspector({
                           </button>
                           <button
                             className="tiny-button"
-                            aria-label={`Move ${child.name} up`}
+                            aria-label={t('Move {name} up', { name: child.name })}
                             disabled={i === 0}
                             onClick={() => reorder(i, -1)}
                           >
@@ -349,7 +364,7 @@ export default function Inspector({
                           </button>
                           <button
                             className="tiny-button"
-                            aria-label={`Move ${child.name} down`}
+                            aria-label={t('Move {name} down', { name: child.name })}
                             disabled={i === edges.length - 1}
                             onClick={() => reorder(i, 1)}
                           >
@@ -364,7 +379,7 @@ export default function Inspector({
             )}
             {'mock' in node.params && (
               <div className="inspector-section">
-                <div className="section-title">SIMULATION</div>
+                <div className="section-title">{t('SIMULATION')}</div>
                 {renderParam('mock', node.params.mock)}
               </div>
             )}
@@ -372,24 +387,24 @@ export default function Inspector({
               .filter((i) => i.nodeId === node.id)
               .map((issue) => (
                 <div className={`inspector-issue ${issue.severity}`} key={issue.id}>
-                  {issue.message}
+                  {t(issue.message)}
                 </div>
               ))}
             <div className="node-meta">
               <code>{node.id.slice(0, 16)}</code>
               <div>
-                <IconButton label="Disconnect node" onClick={() => s.disconnectNode(node.id)}>
+                <IconButton label={t('Disconnect node')} onClick={() => s.disconnectNode(node.id)}>
                   <Link2Off size={14} />
                 </IconButton>
                 <IconButton
-                  label="Duplicate node"
+                  label={t('Duplicate node')}
                   disabled={node.kind === 'Root'}
                   onClick={() => s.duplicate()}
                 >
                   <Copy size={14} />
                 </IconButton>
                 <IconButton
-                  label="Delete node"
+                  label={t('Delete node')}
                   disabled={node.kind === 'Root'}
                   onClick={() => s.removeSelected()}
                 >
@@ -403,14 +418,14 @@ export default function Inspector({
             <div className="inspector-node-heading">
               <SlidersHorizontal size={21} />
               <div>
-                <strong>Project settings</strong>
-                <small>{p.mode === 'game' ? 'Game AI · Unity / .NET' : 'Workflow · .NET'}</small>
+                <strong>{t('Project settings')}</strong>
+                <small>{t(p.mode === 'game' ? 'Game AI · Unity / .NET' : 'Workflow · .NET')}</small>
               </div>
             </div>
             <div className="inspector-section">
               <Field label="Project name">
                 <input
-                  aria-label="Project name"
+                  aria-label={t('Project name')}
                   maxLength={200}
                   value={p.name}
                   onChange={(e) => s.updateProject({ name: e.target.value })}
@@ -418,7 +433,7 @@ export default function Inspector({
               </Field>
               <Field label="Namespace">
                 <input
-                  aria-label="Namespace"
+                  aria-label={t('Namespace')}
                   maxLength={300}
                   value={p.settings.namespace}
                   onChange={(e) =>
@@ -428,7 +443,7 @@ export default function Inspector({
               </Field>
               <Field label="Class name">
                 <input
-                  aria-label="Class name"
+                  aria-label={t('Class name')}
                   maxLength={200}
                   value={p.settings.className}
                   onChange={(e) =>
@@ -438,34 +453,35 @@ export default function Inspector({
               </Field>
             </div>
             <div className="inspector-section">
-              <div className="section-title">RUNTIME CONTRACT</div>
+              <div className="section-title">{t('RUNTIME CONTRACT')}</div>
               <div className="contract">
                 <ShieldCheck size={13} />
                 <code>{p.mode === 'game' ? 'IBehaviorNode' : 'IWorkflowNode'}</code>
                 <Check size={12} />
               </div>
               <p className="inspector-note">
-                Handlers implement <code>I{p.settings.className}Handlers</code>. Missing
-                implementations fail at compile time.
+                {t('Handlers implement {contract}. Missing implementations fail at compile time.', {
+                  contract: `I${p.settings.className}Handlers`,
+                })}
               </p>
             </div>
             <div className="inspector-section">
-              <div className="section-title">PROJECT</div>
+              <div className="section-title">{t('PROJECT')}</div>
               <div className="info-row">
-                <span>Schema</span>
+                <span>{t('Schema')}</span>
                 <code>v{p.schemaVersion}</code>
               </div>
               <div className="info-row">
-                <span>Nodes</span>
+                <span>{t('Nodes')}</span>
                 <code>{p.nodes.length}</code>
               </div>
               <div className="info-row">
-                <span>Connections</span>
+                <span>{t('Connections')}</span>
                 <code>{p.edges.length}</code>
               </div>
               <div className="info-row">
-                <span>Storage</span>
-                <code>Local browser</code>
+                <span>{t('Storage')}</span>
+                <code>{t('Local browser')}</code>
               </div>
             </div>
           </>

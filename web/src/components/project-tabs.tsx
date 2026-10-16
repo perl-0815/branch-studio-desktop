@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { Gamepad2, Plus, Workflow, X } from 'lucide-react';
 import type { Mode } from '@/lib/types';
+import { useI18n } from '@/lib/i18n';
 import { IconButton } from './ui/button';
 
 export default function ProjectTabs({
@@ -17,6 +18,7 @@ export default function ProjectTabs({
   onCreate: () => void;
   onClose: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const tabs = useRef(new Map<string, HTMLButtonElement>());
   const list = useRef<HTMLDivElement>(null);
   const labelsKey = documents.map((document) => `${document.id}:${document.name}`).join('|');
@@ -33,7 +35,7 @@ export default function ProjectTabs({
   }, [activeId, labelsKey]);
   return (
     <div className="project-tab-bar">
-      <div ref={list} className="project-tablist" role="tablist" aria-label="Project tabs">
+      <div ref={list} className="project-tablist" role="tablist" aria-label={t('Project tabs')}>
         {documents.map((document, index) => (
           <div
             key={document.id}
@@ -48,12 +50,12 @@ export default function ProjectTabs({
               }}
               id={`project-tab-${document.id}`}
               role="tab"
-              aria-label={document.name || 'Untitled tree'}
+              aria-label={document.name || t('Untitled tree')}
               aria-controls="project-editor"
               aria-selected={document.id === activeId}
               tabIndex={document.id === activeId ? 0 : -1}
               className="project-tab"
-              title={`${document.name || 'Untitled tree'} · ${document.mode === 'game' ? 'Game AI' : 'Workflow'}`}
+              title={`${document.name || t('Untitled tree')} · ${t(document.mode === 'game' ? 'Game AI' : 'Workflow')}`}
               onClick={() => onSelect(document.id)}
               onKeyDown={(event) => {
                 let next: number;
@@ -70,13 +72,13 @@ export default function ProjectTabs({
               }}
             >
               {document.mode === 'game' ? <Gamepad2 size={14} /> : <Workflow size={14} />}
-              <span>{document.name || 'Untitled tree'}</span>
+              <span>{document.name || t('Untitled tree')}</span>
             </button>
             {documents.length > 1 && (
               <button
                 className="project-tab-close"
-                aria-label={`Close ${document.name || 'Untitled tree'}`}
-                title="Close tree"
+                aria-label={t('Close {name}', { name: document.name || t('Untitled tree') })}
+                title={t('Close tree')}
                 tabIndex={document.id === activeId ? 0 : -1}
                 onClick={() => onClose(document.id)}
               >
@@ -86,7 +88,7 @@ export default function ProjectTabs({
           </div>
         ))}
       </div>
-      <IconButton className="new-project-button" label="New tree" onClick={onCreate}>
+      <IconButton className="new-project-button" label={t('New tree')} onClick={onCreate}>
         <Plus size={18} />
       </IconButton>
     </div>
