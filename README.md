@@ -8,11 +8,16 @@ WPF only runs on Windows. This repository targets both the current macOS develop
 
 ## Local data and files
 
-- Editor autosave stays in the desktop WebView's local storage.
-- **Open project** uses the operating system file picker.
+- Open trees appear as tabs above the editor. Use **+** to create an empty tree in the current mode; click a tab to switch projects. Arrow keys, Home, and End also switch focused tabs.
+- Each tab keeps its own tree, selection, undo/redo history, and canvas position while the app is open. All trees, the active tab, and canvas positions are automatically restored after restarting; undo/redo history lasts for the current session.
+- Use a tab's **×** to close it. The confirmation offers **Save JSON and close** to keep a portable copy; **Close without saving** removes it from this device's workspace. The last tab stays open.
+- Editor autosave stays in the desktop WebView's local storage. Existing single-project saves migrate into a tab, with the original saved copy retained for recovery.
+- **Open JSON** uses the operating system file picker and opens the project in a new tab. **Save JSON** exports the active tree for use on another device.
 - **Export JSON**, **Export C#**, and runtime downloads use the operating system save dialog.
 - Exported JSON can be opened on another computer or in the browser edition.
 - The packaged app does not require a backend. Its editor assets, Monaco editor, and C# runtime templates are bundled with the application.
+
+Use **Appearance settings** (the `Type` icon at the bottom of the left activity bar) to adjust UI text size (100–150%) and the C# preview font size independently. Changes apply immediately and persist on this device across restarts, without changing the project's JSON or canvas zoom.
 
 The native bridge only accepts UTF-8 text, strips paths from requested file names, and limits accepted extensions to `.json`, `.cs`, and `.txt`. Project imports are limited to 5 MiB; generated file saves are limited to 20 MiB. Imported projects are also limited to 2,000 nodes, 4,000 connections, 500 variables, and 512 tree levels before the project replaces the current editor state.
 

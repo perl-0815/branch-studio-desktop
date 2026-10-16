@@ -6,6 +6,13 @@ import { registry } from './registry';
 import { createSample } from './samples';
 import type { GraphNode, Mode, NodeKind, Project } from './types';
 import { assertProjectBounds } from './project-limits';
+import {
+  MAX_WORKSPACE_DOCUMENTS,
+  parseWorkspace,
+  workspaceViewportSchema,
+  type EditorDocument,
+  type WorkspaceViewport,
+} from './workspace';
 
 interface Clipboard {
   nodes: GraphNode[];
@@ -13,6 +20,14 @@ interface Clipboard {
 }
 export interface EditorState {
   project: Project;
+  documents: EditorDocument[];
+  activeDocumentId: string;
+  viewport?: WorkspaceViewport;
+  createDocument: (project: Project) => string;
+  switchDocument: (id: string) => void;
+  closeDocument: (id: string) => boolean;
+  hydrateWorkspace: (input: unknown) => void;
+  setViewport: (viewport: WorkspaceViewport) => void;
   operationError: string | null;
   clearOperationError: () => void;
   selectedIds: string[];
@@ -61,6 +76,35 @@ let clipboard: Clipboard | undefined;
 let moveStart: Project | undefined;
 
 export const useEditorStore = create<EditorState>((set, get) => {
+  const initialProject = createSample('game');
+  const initialDocumentId = id('document');
+  const captureDocuments = (state: EditorState): EditorDocument[] =>
+    state.documents.map((document) =>
+      document.id === state.activeDocumentId
+        ? {
+            id: document.id,
+            project: state.project,
+            viewport: state.viewport,
+            selectedIds: state.selectedIds,
+            past:
+              moveStart && !same(moveStart, state.project)
+                ? [...state.past, moveStart].slice(-100)
+                : state.past,
+            future: moveStart && !same(moveStart, state.project) ? [] : state.future,
+          }
+        : document,
+    );
+  const activate = (document: EditorDocument) => ({
+    activeDocumentId: document.id,
+    project: document.project,
+    viewport: document.viewport,
+    selectedIds: document.selectedIds.filter((id) =>
+      document.project.nodes.some((node) => node.id === id),
+    ),
+    past: document.past,
+    future: document.future,
+    operationError: null,
+  });
   const apply = (project: Project, selectedIds?: string[]) => {
     const state = get();
     try {
@@ -121,7 +165,82 @@ export const useEditorStore = create<EditorState>((set, get) => {
     );
   };
   return {
-    project: createSample('game'),
+    project: initialProject,
+    activeDocumentId: initialDocumentId,
+    documents: [
+      { id: initialDocumentId, project: initialProject, selectedIds: [], past: [], future: [] },
+    ],
+    viewport: undefined,
+    createDocument: (project) => {
+      const parsed = parseProject(project);
+      const state = get();
+      if (state.documents.length >= MAX_WORKSPACE_DOCUMENTS)
+        throw new Error(`A workspace supports up to ${MAX_WORKSPACE_DOCUMENTS} open projects.`);
+      const document: EditorDocument = {
+        id: id('document'),
+        project: parsed,
+        selectedIds: [],
+        past: [],
+        future: [],
+      };
+      const documents = [...captureDocuments(state), document];
+      moveStart = undefined;
+      set({ documents, ...activate(document) });
+      return document.id;
+    },
+    switchDocument: (documentId) => {
+      const state = get();
+      if (documentId === state.activeDocumentId) return;
+      const documents = captureDocuments(state);
+      const document = documents.find((item) => item.id === documentId);
+      if (!document) return;
+      moveStart = undefined;
+      set({ documents, ...activate(document) });
+    },
+    closeDocument: (documentId) => {
+      const state = get();
+      if (
+        state.documents.length <= 1 ||
+        !state.documents.some((document) => document.id === documentId)
+      )
+        return false;
+      const index = state.documents.findIndex((document) => document.id === documentId);
+      const documents = captureDocuments(state).filter((document) => document.id !== documentId);
+      moveStart = undefined;
+      if (state.activeDocumentId === documentId)
+        set({ documents, ...activate(documents[Math.min(index, documents.length - 1)]) });
+      else
+        set({
+          documents,
+          ...activate(documents.find((document) => document.id === state.activeDocumentId)!),
+        });
+      return true;
+    },
+    hydrateWorkspace: (input) => {
+      const workspace = parseWorkspace(input);
+      const documents: EditorDocument[] = workspace.documents.map((document) => ({
+        ...document,
+        selectedIds: [],
+        past: [],
+        future: [],
+      }));
+      const document = documents.find((item) => item.id === workspace.activeDocumentId)!;
+      moveStart = undefined;
+      set({ documents, ...activate(document) });
+    },
+    setViewport: (viewport) => {
+      const parsed = workspaceViewportSchema.safeParse(viewport);
+      if (!parsed.success) return;
+      const current = get().viewport;
+      if (
+        current &&
+        current.x === viewport.x &&
+        current.y === viewport.y &&
+        current.zoom === viewport.zoom
+      )
+        return;
+      set({ viewport: parsed.data });
+    },
     operationError: null,
     clearOperationError: () => set({ operationError: null }),
     selectedIds: [],

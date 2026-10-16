@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3101",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "node scripts/serve-static.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

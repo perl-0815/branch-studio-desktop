@@ -38,7 +38,7 @@ const BehaviorNode = memo(function BehaviorNode({ data, selected }: NodeProps<Fl
       )}
       <div className="node-type">
         <NodeIcon kind={node.kind} size={13} />
-        <span>{def.label}</span>
+        <span title={def.label}>{def.label}</span>
         {error ? (
           <AlertCircle size={12} className="error-icon" />
         ) : status === 'Running' ? (
@@ -51,8 +51,12 @@ const BehaviorNode = memo(function BehaviorNode({ data, selected }: NodeProps<Fl
           <Circle size={5} fill="currentColor" className="node-dot" />
         )}
       </div>
-      <div className="node-name">{node.name}</div>
-      <div className="node-summary">{summary}</div>
+      <div className="node-name" title={node.name}>
+        {node.name}
+      </div>
+      <div className="node-summary" title={summary}>
+        {summary}
+      </div>
       {def.maxChildren > 0 && (
         <Handle type="source" position={Position.Bottom} className="node-handle" />
       )}

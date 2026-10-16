@@ -112,8 +112,7 @@ test('keyboard node movement is undoable', async ({ page }) => {
 
 test('library drag and drop adds a node at the canvas drop location', async ({ page }) => {
   await ready(page);
-  await page.getByRole('button', { name: 'Samples', exact: true }).click();
-  await page.getByRole('button', { name: 'New empty tree', exact: true }).click();
+  await page.getByRole('button', { name: 'New tree', exact: true }).click();
   await expect(page.locator('.status-save')).toHaveText('All changes saved');
   await page
     .getByTestId('add-Condition')
@@ -128,8 +127,7 @@ test('library drag and drop adds a node at the canvas drop location', async ({ p
 
 test('dragging a source handle to empty canvas opens connected quick add', async ({ page }) => {
   await ready(page);
-  await page.getByRole('button', { name: 'Samples', exact: true }).click();
-  await page.getByRole('button', { name: 'New empty tree', exact: true }).click();
+  await page.getByRole('button', { name: 'New tree', exact: true }).click();
   await expect(page.locator('.status-save')).toHaveText('All changes saved');
   const source = page.getByTestId('node-root').locator('.react-flow__handle.source');
   await source.hover();
@@ -415,8 +413,14 @@ test('corrupt local data is preserved until a valid import resumes autosave', as
   await expect(page.locator('.status-save')).toHaveText('All changes saved');
   await page.getByLabel('Rename project').fill('Recovered and saved');
   await expect(page.locator('.status-save')).toHaveText('All changes saved');
-  const stored = await page.evaluate((key) => localStorage.getItem(key), key);
-  expect(JSON.parse(stored!).name).toBe('Recovered and saved');
+  const stored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('branch-studio.workspace.v1')!),
+  );
+  expect(
+    stored.documents.find((document: { id: string }) => document.id === stored.activeDocumentId)
+      .project.name,
+  ).toBe('Recovered and saved');
+  expect(await page.evaluate((key) => localStorage.getItem(key), key)).toBe(corrupt);
 });
 
 test('mode switching retains incompatible nodes and settings and reports the problem', async ({

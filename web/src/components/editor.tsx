@@ -7,6 +7,7 @@ import {
   BackgroundVariant,
   MiniMap,
   useReactFlow,
+  useNodesInitialized,
   ConnectionLineType,
   type Connection,
   type NodeChange,
@@ -57,6 +58,7 @@ import {
   Trash2,
   Link2Off,
   ExternalLink,
+  Type,
 } from 'lucide-react';
 import type { CodeResult, NodeKind, Project, Status } from '@/lib/types';
 import { useEditorStore } from '@/lib/store';
@@ -77,10 +79,21 @@ import BehaviorNode, { type FlowNode } from './behavior-node';
 import Library from './library';
 import Inspector from './inspector';
 import CodePreview from './code-preview';
+import AppearanceSettings from './appearance-settings';
+import ProjectTabs from './project-tabs';
+import CloseProjectDialog from './close-project-dialog';
+import { createEmptyProject, parseWorkspaceText, serializeWorkspace } from '@/lib/workspace';
+import {
+  APPEARANCE_STORAGE_KEY,
+  defaultAppearance,
+  parseAppearance,
+  type AppearancePreferences,
+} from '@/lib/appearance';
 import NodeIcon from './node-icon';
 import { Button, IconButton, TooltipProvider } from './ui/button';
 const nodeTypes = { behavior: BehaviorNode };
 const STORAGE_KEY = 'branch-studio.project.v1';
+const WORKSPACE_KEY = 'branch-studio.workspace.v1';
 function download(filename: string, content: string, type = 'text/plain') {
   const a = document.createElement('a');
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -115,6 +128,7 @@ function EditorWorkspace() {
   const s = useEditorStore();
   const p = s.project;
   const flow = useReactFlow<FlowNode>();
+  const nodesInitialized = useNodesInitialized();
   const [hydrated, setHydrated] = useState(false);
   const [saved, setSaved] = useState<'saved' | 'saving' | 'error'>('saved');
   const [notice, setNotice] = useState<string | null>(null);
@@ -129,6 +143,9 @@ function EditorWorkspace() {
   const [exportOpen, setExportOpen] = useState(false);
   const [samplesOpen, setSamplesOpen] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const [appearance, setAppearance] = useState<AppearancePreferences>(defaultAppearance);
+  const [appearanceSaveUnavailable, setAppearanceSaveUnavailable] = useState(false);
   const [quick, setQuick] = useState<QuickMenu | null>(null);
   const [quickQuery, setQuickQuery] = useState('');
   const [quickIndex, setQuickIndex] = useState(0);
@@ -136,6 +153,8 @@ function EditorWorkspace() {
   const [logs, setLogs] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
   const [fileOperation, setFileOperation] = useState<'open' | 'save' | null>(null);
+  const [closingDocumentId, setClosingDocumentId] = useState<string | null>(null);
+  const [closeSaveError, setCloseSaveError] = useState(false);
   const [simState, setSimState] = useState<SimSnapshot | null>(null);
   const graphRef = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -143,6 +162,13 @@ function EditorWorkspace() {
   const quickInput = useRef<HTMLInputElement>(null);
   const ignorePaneClick = useRef(false);
   const recoveryBlocked = useRef(false); // preserve unreadable saved data until explicit recovery
+  const restoredDocument = useRef<string | null>(null);
+  const restoringViewport = useRef(false);
+  const viewportOwner = useRef<string | null>(null);
+  const viewportRequest = useRef(0);
+  const [measurements, setMeasurements] = useState(
+    () => new Map<string, { width: number; height: number }>(),
+  );
   const issues = useMemo(() => validateProject(p), [p]);
   const errors = issues.filter((i) => i.severity === 'error');
   const warnings = issues.filter((i) => i.severity === 'warning');
@@ -179,7 +205,7 @@ function EditorWorkspace() {
     } catch {
       return null;
     }
-  }, [semanticKey]); // positions never reset execution
+  }, [semanticKey, s.activeDocumentId]); // positions never reset execution
   const mockKey = JSON.stringify(
     p.nodes.filter((n) => 'mock' in n.params).map((n) => [n.id, n.params.mock]),
   );
@@ -200,6 +226,29 @@ function EditorWorkspace() {
   const notify = useCallback((message: string) => {
     setNotice(message);
   }, []);
+  const updateAppearance = (next: AppearancePreferences) => {
+    setAppearance(next);
+    try {
+      localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(next));
+      setAppearanceSaveUnavailable(false);
+    } catch {
+      setAppearanceSaveUnavailable(true);
+    }
+  };
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(APPEARANCE_STORAGE_KEY);
+      if (saved) setAppearance(parseAppearance(JSON.parse(saved)));
+    } catch {
+      // Unreadable preferences never prevent the editor or saved project from opening.
+    }
+  }, []);
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--ui-text-scale',
+      String(appearance.textScale / 100),
+    );
+  }, [appearance.textScale]);
   useEffect(() => {
     void initializeNativeFiles().catch((error) =>
       notify(error instanceof Error ? error.message : 'Desktop file bridge is unavailable.'),
@@ -221,11 +270,20 @@ function EditorWorkspace() {
       setRightOpen(false);
     }
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) s.loadProject(parseProjectText(saved));
+      const workspace = localStorage.getItem(WORKSPACE_KEY);
+      if (workspace) s.hydrateWorkspace(parseWorkspaceText(workspace));
+      else {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved)
+          s.hydrateWorkspace({
+            schemaVersion: 1,
+            activeDocumentId: 'restored-project',
+            documents: [{ id: 'restored-project', project: parseProjectText(saved) }],
+          });
+      }
     } catch {
       recoveryBlocked.current = true;
-      setNotice('Saved project could not be restored. Your saved data has been preserved.');
+      setNotice('Saved workspace could not be restored. Your saved data has been preserved.');
       setSaved('error');
     }
     setHydrated(true);
@@ -236,21 +294,21 @@ function EditorWorkspace() {
     setSaved('saving');
     const id = setTimeout(() => {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+        localStorage.setItem(WORKSPACE_KEY, serializeWorkspace(useEditorStore.getState()));
         setSaved('saved');
       } catch {
         setSaved('error');
       }
     }, 600);
     return () => clearTimeout(id);
-  }, [p, hydrated]);
+  }, [p, s.documents, s.activeDocumentId, s.viewport, hydrated]);
   useEffect(() => {
     if (!hydrated) return;
     // Commit the current store snapshot before navigation can discard the debounce timer.
     const flush = () => {
       if (recoveryBlocked.current) return;
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(useEditorStore.getState().project));
+        localStorage.setItem(WORKSPACE_KEY, serializeWorkspace(useEditorStore.getState()));
         setSaved('saved');
       } catch {
         setSaved('error');
@@ -266,6 +324,55 @@ function EditorWorkspace() {
       document.removeEventListener('visibilitychange', flushWhenHidden);
     };
   }, [hydrated]);
+  useEffect(() => {
+    if (!hydrated || !nodesInitialized || !flow.viewportInitialized) return;
+    if (restoredDocument.current === s.activeDocumentId) return;
+    const documentId = s.activeDocumentId;
+    const request = ++viewportRequest.current;
+    restoringViewport.current = true;
+    restoredDocument.current = documentId;
+    const viewport = useEditorStore.getState().viewport;
+    const restore = viewport
+      ? flow.setViewport(viewport, { duration: 0 })
+      : flow.fitView({ padding: 0.2, maxZoom: 1, duration: 0 });
+    void restore.finally(() => {
+      if (
+        useEditorStore.getState().activeDocumentId !== documentId ||
+        viewportRequest.current !== request
+      )
+        return;
+      viewportOwner.current = documentId;
+      restoringViewport.current = false;
+      useEditorStore.getState().setViewport(flow.getViewport());
+      setZoom(Math.round(flow.getZoom() * 100));
+    });
+  }, [hydrated, nodesInitialized, s.activeDocumentId, flow]);
+  const captureViewport = () => {
+    const state = useEditorStore.getState();
+    if (
+      flow.viewportInitialized &&
+      !restoringViewport.current &&
+      viewportOwner.current === state.activeDocumentId
+    ) {
+      const viewport = flow.getViewport();
+      void flow.setViewport(viewport, { duration: 0 });
+      state.setViewport(viewport);
+    }
+  };
+  const resetViewportOwner = () => {
+    viewportOwner.current = null;
+    restoredDocument.current = null;
+    restoringViewport.current = true;
+    viewportRequest.current++;
+  };
+  useEffect(() => {
+    setSelectedEdges([]);
+    setLogs([]);
+    setQuick(null);
+    setExportOpen(false);
+    setSamplesOpen(false);
+    connectSource.current = null;
+  }, [s.activeDocumentId]);
   useEffect(() => {
     setRunning(false);
     setSimState(null);
@@ -290,10 +397,10 @@ function EditorWorkspace() {
   }, [running, step]);
   const save = useCallback(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(useEditorStore.getState().project));
+      localStorage.setItem(WORKSPACE_KEY, serializeWorkspace(useEditorStore.getState()));
       recoveryBlocked.current = false;
       setSaved('saved');
-      notify('Project saved locally.');
+      notify('All open trees saved locally.');
     } catch {
       setSaved('error');
       notify('Local storage is unavailable. Export JSON to save your project.');
@@ -390,9 +497,10 @@ function EditorWorkspace() {
   };
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (appearanceOpen || document.querySelector('dialog[open]')) return;
       const target = e.target as HTMLElement;
       const input = target.closest(
-        'input, textarea, select, [contenteditable="true"], .monaco-editor',
+        'input, textarea, select, [contenteditable="true"], .monaco-editor, [role="tablist"]',
       );
       if (input) return;
       const mod = e.metaKey || e.ctrlKey;
@@ -449,9 +557,40 @@ function EditorWorkspace() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [s, p.nodes, save, generate, notify, openQuick, flow, selectedEdges, shortcuts]);
+  }, [
+    s,
+    p.nodes,
+    save,
+    generate,
+    notify,
+    openQuick,
+    flow,
+    selectedEdges,
+    shortcuts,
+    appearanceOpen,
+  ]);
   const onNodesChange = useCallback(
     (changes: NodeChange<FlowNode>[]) => {
+      const dimensions = changes.filter(
+        (change) => change.type === 'dimensions' && change.dimensions,
+      );
+      if (dimensions.length)
+        setMeasurements((current) => {
+          const next = new Map(current);
+          let changed = false;
+          for (const change of dimensions) {
+            if (change.type !== 'dimensions' || !change.dimensions) continue;
+            const previous = current.get(change.id);
+            if (
+              previous?.width === change.dimensions.width &&
+              previous?.height === change.dimensions.height
+            )
+              continue;
+            next.set(change.id, change.dimensions);
+            changed = true;
+          }
+          return changed ? next : current;
+        });
       const positions: Record<string, { x: number; y: number }> = {};
       const selected = new Set(useEditorStore.getState().selectedIds);
       let selectionChanged = false;
@@ -521,10 +660,11 @@ function EditorWorkspace() {
         type: 'behavior',
         position: node.position,
         selected: s.selectedIds.includes(node.id),
+        measured: measurements.get(node.id),
         data,
       };
     });
-  }, [p, s.selectedIds, errorIds, simState]);
+  }, [p, s.selectedIds, errorIds, simState, measurements]);
   const flowEdges = useMemo(
     () =>
       p.edges.map((edge) => ({
@@ -536,19 +676,24 @@ function EditorWorkspace() {
           stroke: simState?.statuses[edge.target] === 'Running' ? '#a5be89' : '#4a5257',
           strokeWidth: 1.4,
         },
-        labelStyle: { fill: '#919b9d', fontSize: 10, fontFamily: 'monospace' },
+        labelStyle: {
+          fill: '#919b9d',
+          fontSize: (10 * appearance.textScale) / 100,
+          fontFamily: 'monospace',
+        },
         labelBgStyle: { fill: '#171a1c', fillOpacity: 1 },
         labelBgPadding: [4, 2] as [number, number],
         labelBgBorderRadius: 3,
       })),
-    [p.edges, selectedEdges, simState],
+    [p.edges, selectedEdges, simState, appearance.textScale],
   );
   const applyImportedProject = (project: Project, fileName: string) => {
-    s.loadProject(project);
+    captureViewport();
+    s.createDocument(project);
+    resetViewportOwner();
     recoveryBlocked.current = false;
     notify(`Imported ${project.name}.`);
     addLog(`Imported ${fileName}`);
-    setTimeout(() => flow.fitView({ padding: 0.2 }), 100);
   };
   const reportFileError = (error: unknown, operation: 'Open' | 'Save') => {
     if (error instanceof NativeOperationError && error.cancelled) return;
@@ -602,8 +747,10 @@ function EditorWorkspace() {
         notify(`Saved ${savedFile.fileName}.`);
         addLog(`Saved ${savedFile.fileName}`);
       } else download(filename, content, type);
+      return true;
     } catch (error) {
       reportFileError(error, 'Save');
+      return false;
     } finally {
       setFileOperation(null);
     }
@@ -626,26 +773,64 @@ function EditorWorkspace() {
     }
   };
   const newProject = () => {
-    const sample = createSample(p.mode);
-    s.loadProject({
-      ...sample,
-      name: 'Untitled tree',
-      nodes: sample.nodes
-        .filter((n) => n.kind === 'Root')
-        .map((n) => ({ ...n, position: { x: 0, y: 0 } })),
-      edges: [],
-      variables: [],
-    });
-    setSamplesOpen(false);
-    setTab('problems');
-    recoveryBlocked.current = false;
-    setTimeout(() => flow.fitView({ padding: 2, maxZoom: 1 }), 100);
+    const current = useEditorStore.getState();
+    const names = new Set(
+      current.documents.map((doc) =>
+        doc.id === current.activeDocumentId ? current.project.name : doc.project.name,
+      ),
+    );
+    let name = 'Untitled tree';
+    for (let number = 2; names.has(name); number++) name = `Untitled tree ${number}`;
+    try {
+      captureViewport();
+      s.createDocument(createEmptyProject(current.project.mode, name));
+      resetViewportOwner();
+      recoveryBlocked.current = false;
+      setTab('problems');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not create a tree.');
+    }
+  };
+  const selectDocument = (documentId: string) => {
+    if (documentId === useEditorStore.getState().activeDocumentId) return;
+    captureViewport();
+    resetViewportOwner();
+    s.switchDocument(documentId);
+  };
+  const closeDocument = (documentId: string) => {
+    captureViewport();
+    const previousId = useEditorStore.getState().activeDocumentId;
+    if (!s.closeDocument(documentId)) return;
+    if (useEditorStore.getState().activeDocumentId !== previousId) resetViewportOwner();
+    setClosingDocumentId(null);
+    requestAnimationFrame(() =>
+      document.getElementById(`project-tab-${useEditorStore.getState().activeDocumentId}`)?.focus(),
+    );
+  };
+  const closingProject =
+    closingDocumentId === s.activeDocumentId
+      ? p
+      : s.documents.find((doc) => doc.id === closingDocumentId)?.project;
+  const saveAndCloseDocument = async () => {
+    if (!closingDocumentId || !closingProject || fileOperation) return;
+    setCloseSaveError(false);
+    const saved = await saveExport(
+      `${closingProject.name.replace(/[^a-z0-9_-]/gi, '-') || 'Untitled-tree'}.json`,
+      JSON.stringify(closingProject, null, 2),
+      'application/json',
+    );
+    if (saved) closeDocument(closingDocumentId);
+    else setCloseSaveError(true);
   };
   const loadSample = (mode: Project['mode']) => {
     s.loadProject(createSample(mode));
     recoveryBlocked.current = false;
     setSamplesOpen(false);
-    setTimeout(() => flow.fitView({ padding: 0.18 }), 100);
+    const documentId = s.activeDocumentId;
+    setTimeout(() => {
+      if (useEditorStore.getState().activeDocumentId === documentId)
+        void flow.fitView({ padding: 0.18 });
+    }, 100);
     notify(
       `${mode === 'game' ? 'Enemy AI' : 'Order processing'} sample loaded. Undo restores your previous tree.`,
     );
@@ -907,13 +1092,22 @@ function EditorWorkspace() {
           </div>
         </div>
       </header>
+      <ProjectTabs
+        documents={s.documents.map((doc) => ({
+          id: doc.id,
+          name: doc.id === s.activeDocumentId ? p.name : doc.project.name,
+          mode: doc.id === s.activeDocumentId ? p.mode : doc.project.mode,
+        }))}
+        activeId={s.activeDocumentId}
+        onSelect={selectDocument}
+        onCreate={newProject}
+        onClose={(documentId) => {
+          setRunning(false);
+          setCloseSaveError(false);
+          setClosingDocumentId(documentId);
+        }}
+      />
       <div className="workspace-bar">
-        <div className="document-tab">
-          <GitBranch size={14} />
-          <span>{p.name}</span>
-          <span className="file-extension">.btree</span>
-          <span className="tab-dot" />
-        </div>
         <div className="workspace-path">
           <span>{p.mode === 'game' ? 'Game AI' : 'Workflow'}</span>
           <ChevronRight size={11} />
@@ -952,11 +1146,6 @@ function EditorWorkspace() {
               <>
                 <div className="dismiss-layer" onClick={() => setSamplesOpen(false)} />
                 <div className="dropdown-menu samples-menu">
-                  <button onClick={newProject}>
-                    <Plus size={15} />
-                    New empty tree
-                  </button>
-                  <div className="menu-separator" />
                   <button onClick={() => loadSample('game')}>
                     <Gamepad2 size={15} />
                     Enemy AI
@@ -980,7 +1169,12 @@ function EditorWorkspace() {
           </IconButton>
         </div>
       </div>
-      <div className="workspace-main">
+      <div
+        className="workspace-main"
+        id="project-editor"
+        role="tabpanel"
+        aria-labelledby={`project-tab-${s.activeDocumentId}`}
+      >
         <nav className="activity-bar" aria-label="Editor panels">
           <IconButton
             label="Node library"
@@ -1003,6 +1197,18 @@ function EditorWorkspace() {
             <DatabaseIcon />
           </IconButton>
           <div className="activity-spacer" />
+          <IconButton
+            label="Appearance settings"
+            onClick={() => {
+              setShortcuts(false);
+              setQuick(null);
+              setExportOpen(false);
+              setSamplesOpen(false);
+              setAppearanceOpen(true);
+            }}
+          >
+            <Type size={19} />
+          </IconButton>
           <IconButton label="Keyboard shortcuts" onClick={() => setShortcuts(!shortcuts)}>
             <Keyboard size={19} />
           </IconButton>
@@ -1035,7 +1241,11 @@ function EditorWorkspace() {
                 className="canvas-tool"
                 onClick={() => {
                   s.autoLayout();
-                  setTimeout(() => flow.fitView({ padding: 0.15, duration: 200 }), 60);
+                  const documentId = s.activeDocumentId;
+                  setTimeout(() => {
+                    if (useEditorStore.getState().activeDocumentId === documentId)
+                      void flow.fitView({ padding: 0.15, duration: 0 });
+                  }, 60);
                 }}
                 title="Arrange tree"
               >
@@ -1097,8 +1307,14 @@ function EditorWorkspace() {
                 openQuick('context', { x: e.clientX, y: e.clientY });
               }}
               onMove={(_, viewport) => setZoom(Math.round(viewport.zoom * 100))}
-              fitView
-              fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
+              onMoveEnd={(_, viewport) => {
+                if (
+                  !restoringViewport.current &&
+                  viewportOwner.current === s.activeDocumentId &&
+                  useEditorStore.getState().activeDocumentId === s.activeDocumentId
+                )
+                  s.setViewport(viewport);
+              }}
               minZoom={0.15}
               maxZoom={2}
               snapToGrid
@@ -1262,6 +1478,7 @@ function EditorWorkspace() {
                     <div className="panel-empty error-icon">{generation.error}</div>
                   ) : (
                     <CodePreview
+                      fontSize={appearance.codeFontSize}
                       result={codeResult}
                       selectedId={s.selectedIds[0]}
                       onSelect={focusNode}
@@ -1531,6 +1748,22 @@ function EditorWorkspace() {
           </div>
         </>
       )}
+      <AppearanceSettings
+        open={appearanceOpen}
+        preferences={appearance}
+        saveUnavailable={appearanceSaveUnavailable}
+        onChange={updateAppearance}
+        onClose={() => setAppearanceOpen(false)}
+      />
+      <CloseProjectDialog
+        open={!!closingDocumentId && !!closingProject}
+        documentName={closingProject?.name || 'Untitled tree'}
+        busy={!!fileOperation}
+        saveError={closeSaveError}
+        onCancel={() => setClosingDocumentId(null)}
+        onDiscard={() => closingDocumentId && closeDocument(closingDocumentId)}
+        onSave={() => void saveAndCloseDocument()}
+      />
       {shortcuts && (
         <div className="modal-backdrop" onClick={() => setShortcuts(false)}>
           <div

@@ -7,10 +7,12 @@ import type { CodeResult } from '@/lib/types';
 loader.config({ paths: { vs: '/monaco/vs' } });
 const Monaco = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 export default function CodePreview({
+  fontSize,
   result,
   selectedId,
   onSelect,
 }: {
+  fontSize: number;
   result: CodeResult | null;
   selectedId?: string;
   onSelect: (id: string) => void;
@@ -49,9 +51,9 @@ export default function CodePreview({
         loading={<div className="code-loading">Loading C# editor…</div>}
         options={{
           readOnly: true,
-          fontSize: 12,
+          fontSize,
           fontFamily: '"SFMono-Regular", Consolas, monospace',
-          lineHeight: 20,
+          lineHeight: Math.round((fontSize * 5) / 3),
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
           padding: { top: 10 },
