@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="src/BranchStudio.Contracts/BranchStudio.Contracts.csproj" />
+  <Project Path="src/BranchStudio.Desktop/BranchStudio.Desktop.csproj" />
+  <Project Path="tools/BranchStudio.ContractGen/BranchStudio.ContractGen.csproj" />
+  <Project Path="web/runtime/BranchStudio.Game/BranchStudio.Game.csproj" />
+  <Project Path="web/runtime/BranchStudio.Runtime/BranchStudio.Runtime.csproj" />
+  <Project Path="web/runtime/BranchStudio.Runtime.Tests/BranchStudio.Runtime.Tests.csproj" />
+</Solution>
+

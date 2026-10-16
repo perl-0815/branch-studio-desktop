@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../src/BranchStudio.Contracts/BranchStudio.Contracts.csproj" />
+    <Compile Remove="BranchStudio.Game.cs" />
+    <ProjectReference Include="../BranchStudio.Game/BranchStudio.Game.csproj" />
+  </ItemGroup>
+</Project>

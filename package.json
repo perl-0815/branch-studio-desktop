@@ -1,0 +1,19 @@
+{
+  "name": "branch-studio-desktop-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "scripts": {
+    "install:web": "pnpm --dir web install --frozen-lockfile",
+    "contracts:generate": "dotnet run --project tools/BranchStudio.ContractGen/BranchStudio.ContractGen.csproj -- --output web/src/generated",
+    "contracts:check": "dotnet run --project tools/BranchStudio.ContractGen/BranchStudio.ContractGen.csproj -- --output web/src/generated --check",
+    "contracts:test": "dotnet run --project tools/BranchStudio.ContractGen/BranchStudio.ContractGen.csproj -- --self-test",
+    "runtime:bundle": "node scripts/bundle-runtimes.mjs",
+    "generate": "pnpm contracts:generate && pnpm runtime:bundle",
+    "check:web": "pnpm contracts:check && pnpm --dir web typecheck && pnpm --dir web test",
+    "test:runtime": "dotnet test web/runtime/BranchStudio.Runtime.Tests/BranchStudio.Runtime.Tests.csproj --nologo",
+    "build:web": "pnpm --dir web build",
+    "sync:web": "node scripts/sync-web.mjs",
+    "prepare:desktop": "pnpm generate && pnpm build:web && pnpm sync:web"
+  }
+}
+

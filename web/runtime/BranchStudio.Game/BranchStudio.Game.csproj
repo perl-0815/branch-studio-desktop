@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../src/BranchStudio.Contracts/BranchStudio.Contracts.csproj" />
+    <Compile Include="../BranchStudio.Runtime/BranchStudio.Game.cs" Link="BranchStudio.Game.cs" />
+  </ItemGroup>
+</Project>

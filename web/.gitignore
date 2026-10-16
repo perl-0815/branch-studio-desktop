@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.DS_Store
+.dotnet/
+runtime/**/bin/
+runtime/**/obj/
+public/monaco/
+.env
+.env.*
+!.env.example
+*.log

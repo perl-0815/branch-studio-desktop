@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Branch Studio social preview</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        background: #15191b;
+        color: #eef0ee;
+      }
+      .card {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(ellipse at 85% 35%, #28332a 0, transparent 55%), #15191b;
+      }
+      .grid {
+        position: absolute;
+        inset: 0;
+        opacity: 0.35;
+        background-image: radial-gradient(#435146 0.8px, transparent 0.8px);
+        background-size: 22px 22px;
+        mask-image: linear-gradient(to right, transparent 22%, black);
+      }
+      .identity {
+        position: absolute;
+        top: 69px;
+        left: 48px;
+        width: 330px;
+      }
+      .icon {
+        width: 72px;
+        height: 72px;
+        display: block;
+        margin-bottom: 34px;
+      }
+      .eyebrow {
+        font-size: 11px;
+        letter-spacing: 2px;
+        font-weight: 600;
+        color: #a5ba94;
+        margin: 0 0 16px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 47px;
+        font-weight: 700;
+        letter-spacing: -2px;
+        line-height: 1.1;
+      }
+      h1 span {
+        color: #a5b3ad;
+        font-weight: 400;
+      }
+      .description {
+        margin: 25px 0 0;
+        font-size: 27px;
+        line-height: 1.35;
+        letter-spacing: -0.5px;
+        color: #c8d4cc;
+      }
+      .modes {
+        display: flex;
+        gap: 9px;
+        margin-top: 31px;
+      }
+      .modes span {
+        font-size: 11px;
+        font-weight: 500;
+        color: #b3c59e;
+        border: 1px solid #45533e;
+        background: #253021;
+        border-radius: 4px;
+        padding: 7px 10px;
+      }
+      .url {
+        position: absolute;
+        left: 48px;
+        bottom: 40px;
+        margin: 0;
+        color: #7b8d81;
+        font-size: 12px;
+        letter-spacing: 0.2px;
+      }
+      .editor {
+        position: absolute;
+        left: 404px;
+        top: 78px;
+        width: 760px;
+        height: 475px;
+        border: 1px solid #4b5b4b;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 24px 60px #0007;
+        background: #1b1e20;
+      }
+      .editor img {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .caption {
+        position: absolute;
+        right: 38px;
+        bottom: 40px;
+        margin: 0;
+        color: #81917e;
+        font-size: 10px;
+        letter-spacing: 1.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="grid"></div>
+      <section class="identity">
+        <img class="icon" src="{{ICON_DATA_URL}}" alt="" />
+        <p class="eyebrow">BEHAVIOR TREE EDITOR</p>
+        <h1>branch<span>studio</span></h1>
+        <p class="description">Build visually.<br />Generate C#.</p>
+        <div class="modes"><span>Game AI</span><span>Workflow</span></div>
+      </section>
+      <div class="editor"><img src="{{SCREENSHOT_DATA_URL}}" alt="The Branch Studio editor" /></div>
+      <p class="url">branch-studio.vercel.app</p>
+      <p class="caption">LOCAL-FIRST · INTERFACE-ENFORCED C#</p>
+    </main>
+  </body>
+</html>

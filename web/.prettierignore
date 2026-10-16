@@ -1,0 +1,7 @@
+.next/
+out/
+node_modules/
+public/monaco/
+next-env.d.ts
+runtime/**/bin/
+runtime/**/obj/
